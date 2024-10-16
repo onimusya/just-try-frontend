@@ -82,6 +82,16 @@ export default function Dashboard() {
       let lAuthClient = await login();
       await handleSaveData(lAuthClient);
 
+            // Load uploaded files
+            await assetManager.list()
+            .then(assets => assets
+                .filter(asset => asset.key.startsWith('/uploads/'))
+                .sort((a, b) => Number(b.encodings[0].modified - a.encodings[0].modified))
+                .map(({key}) => detailsFromKey(key)))
+            .then(setUploads);            
+
+            console.log(`[Dashboard][handleLogin] Uploaded Images:`, uploads);
+
     }
 
     const handleLogout = async () => {
@@ -102,8 +112,21 @@ export default function Dashboard() {
       if (authClient.isAuthenticated() && (await authClient.getIdentity().getPrincipal().isAnonymous()) === false) {
             console.log(`[Dashboard][handleRefresh] Authenticated!`);
             const lagent = await setupAgent(authClient)
-            setupAssetManager(lagent);
-            handleSaveData(authClient);        
+            const lAssetManager = setupAssetManager(lagent);
+            await handleSaveData(authClient);       
+            
+            // Load uploaded files
+            await lAssetManager.list()
+            .then(assets => assets
+                .filter(asset => asset.key.startsWith('/uploads/'))
+                .sort((a, b) => Number(b.encodings[0].modified - a.encodings[0].modified))
+                .map(({key}) => detailsFromKey(key)))
+            .then((u) => {
+              console.log(`[Dashboard][handleRefresh] Uploaded Images:`, u);
+              setUploads(u);
+            });            
+
+            
         } else {
             toast.error("Please authenticate!");
             console.log(`[Dashboard][handleRefresh] Not authenticated!`);
