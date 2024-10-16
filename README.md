@@ -55,6 +55,16 @@ npm start
 
 Which will start a server at `http://localhost:8080`, proxying API requests to the replica at port 4943.
 
+
+## Authorization
+
+To authorize an identity to upload files, it must be authorized first:
+
+```bash
+dfx canister call just-try-frontend authorize '(principal "<Your Internet Identity Principal Id>")'
+```
+
+
 ### Note on frontend environment variables
 
 If you are hosting frontend code somewhere without using DFX, you may need to make one of the following adjustments to ensure your project does not fetch the root key in production:

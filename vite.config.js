@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     define: {
-      'process.env': env
+      "process.env": env,
+      global: "window",
     },    
     plugins: [react()],
     resolve: {

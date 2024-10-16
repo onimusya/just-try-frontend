@@ -2,6 +2,7 @@ import { AuthClient } from "@dfinity/auth-client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { AccountIdentifier } from "@dfinity/ledger-icp";
 import { Actor, HttpAgent } from "@dfinity/agent";
+import { AssetManager } from '@dfinity/assets';
 
 const AuthContext = createContext();
 
@@ -24,7 +25,7 @@ const defaultOptions = {
    */
   loginOptions: {
     identityProvider: 
-      process?.env.DFX_NETWORK === "ic"
+      process.env.DFX_NETWORK === "ic"
         ? "https://identity.ic0.app/#authorize"
         : `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:${process.env.REPLICA_PORT}/#authorize`,
   },
@@ -36,6 +37,10 @@ export const useAuthClient = (options = defaultOptions) => {
   const [identity, setIdentity] = useState(null);
   const [principal, setPrincipal] = useState(null);
   const [accountId, setAccountId] = useState(null);
+  const [agent, setAgent] = useState(null);
+  const [assetManager, setAssetManager] = useState(null);
+
+  const isLocal = !window.location.host.endsWith('ic0.app');
 
   useEffect(() => {
 
@@ -58,7 +63,8 @@ export const useAuthClient = (options = defaultOptions) => {
 
         const principal = authClient.getIdentity().getPrincipal();
         console.log(`[useAuthClient][login] Already authenticated with Pricipal Id `, principal.toText());
-
+        const lagent = await setupAgent(authClient);
+        setupAssetManager(lagent);
         await updateClient(authClient);
         resolve(authClient);        
       } else {
@@ -69,9 +75,12 @@ export const useAuthClient = (options = defaultOptions) => {
             console.log(`[useAuthClient][login] Error:`, error);
 
           },
-          onSuccess: () => {
+          onSuccess: async () => {
             console.log(`[useAuthClient][login] Login success.`);
-            updateClient(authClient);
+            const lagent = await setupAgent(authClient);
+            setupAssetManager(lagent);
+
+            await updateClient(authClient);
             resolve(authClient);
           }
         })
@@ -104,6 +113,35 @@ export const useAuthClient = (options = defaultOptions) => {
     setIsAuthenticated(false);
   }
 
+  const setupAgent = async (client) => {
+    const identity = client.getIdentity();
+
+    const lagent = new HttpAgent({
+      host: (process.env.DFX_NETWORK !== "ic") ? `http://127.0.0.1:${process.env.REPLICA_PORT}` : 'https://ic0.app', identity,
+    });
+
+    // Fetch root key for certificate validation during development
+    if (process.env.DFX_NETWORK !== "ic") {
+      // Will throw error when
+      console.log(`[useAuthClient][setupAgent] Running in local, fetch root key`);
+      await lagent.fetchRootKey().catch((err) => {
+        console.log(`[useAuthClient][setupAgent] Error (fetchRootKey): `, err);
+      });
+    }
+
+    setAgent(lagent);
+    return lagent;
+  }
+
+  const setupAssetManager = (agent) => {
+    const canisterId = process.env.CANISTER_ID_JUST_TRY_FRONTEND;
+    console.log(`[useAuthClient][setupAssetManager] Asset Canister Id:`, canisterId)    
+    const assetManager = new AssetManager({canisterId, agent});
+    setAssetManager(assetManager);
+
+    return assetManager;
+  }
+
   return {
     isAuthenticated,
     login,
@@ -112,7 +150,11 @@ export const useAuthClient = (options = defaultOptions) => {
     authClient,
     identity,
     principal,
-    accountId
+    accountId,
+    agent,
+    setupAgent,
+    assetManager,
+    setupAssetManager
   }
 }
 

@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { PageHeader, PageHeaderHeading } from "@/components/page-header";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button"
 import toast, { Toaster } from "react-hot-toast";
 
@@ -11,14 +11,48 @@ import { AuthClient } from "@dfinity/auth-client";
 // https://www.npmjs.com/package/@dfinity/ledger-icp
 import { AccountIdentifier } from "@dfinity/ledger-icp";
 
+// https://internetcomputer.org/docs/current/references/asset-canister
+import {AssetManager} from '@dfinity/assets';
 import { Actor, HttpAgent } from "@dfinity/agent";
 
 import { useAuth } from "../lib/useAuthClient";
 
+import Masonry from "react-masonry-css";
+import "./Dashboard.css";
+
+
+// Get file name, width and height from key
+const detailsFromKey = (key) => {
+  const fileName = key.split('/').slice(-1)[0];
+  const width = parseInt(fileName.split('.').slice(-3)[0]);
+  const height = parseInt(fileName.split('.').slice(-2)[0]);
+  return {key, fileName, width, height}
+}
+
+// Get file name, width and height from file
+const detailsFromFile = async (file) => {
+  const src = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+  })
+  const [width, height] = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve([img.naturalWidth, img.naturalHeight]);
+      img.src = src;
+  })
+  const name = file.name.split('.');
+  const extension = name.pop();
+  const fileName = [name, width, height, extension].join('.');
+  return {fileName, width, height}
+}
 
 export default function Dashboard() {
 
-    const { login, logout, isAuthenticated, principal, accountId, updateClient } = useAuth();
+  const [uploads, setUploads] = useState([]);
+  const [progress, setProgress] = useState(null);
+
+  const { login, logout, isAuthenticated, principal, accountId, updateClient, agent, setupAgent, assetManager, setupAssetManager } = useAuth();
 
     function toHexString(byteArray) {
         return Array.from(byteArray, function (byte) {
@@ -37,8 +71,7 @@ export default function Dashboard() {
         
         let accountId = AccountIdentifier.fromPrincipal({ principal });
         let accountIdString = toHexString(accountId.bytes);
-        console.log(`[Dashboard][handleSaveData] AccountId String:`, accountIdString);
-
+        console.log(`[Dashboard][handleSaveData] AccountId String:`, accountIdString);        
         updateClient(authClient);
 
     }
@@ -68,6 +101,8 @@ export default function Dashboard() {
   
       if (authClient.isAuthenticated() && (await authClient.getIdentity().getPrincipal().isAnonymous()) === false) {
             console.log(`[Dashboard][handleRefresh] Authenticated!`);
+            const lagent = await setupAgent(authClient)
+            setupAssetManager(lagent);
             handleSaveData(authClient);        
         } else {
             toast.error("Please authenticate!");
@@ -76,6 +111,35 @@ export default function Dashboard() {
 
     }
 
+    const handleUploadPhotos = () => {
+      const input = document.createElement('input');
+
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = true;
+      input.onchange = async () => {
+          setProgress(0);
+          try {
+              const batch = assetManager.batch();
+              const items = await Promise.all(Array.from(input.files).map(async (file) => {
+                  const {fileName, width, height} = await detailsFromFile(file);
+                  const key = await batch.store(file, {path: '/uploads', fileName});
+                  return {key, fileName, width, height};
+              }));
+              await batch.commit({onProgress: ({current, total}) => setProgress(current / total)});
+              setUploads(prevState => [...items, ...prevState])
+          } catch (e) {
+              if (e.message.includes('Caller is not authorized')) {
+                  alert("Caller is not authorized, follow Authorization instructions in README");
+              } else {
+                  throw e;
+              }
+          }
+          setProgress(null)
+      };
+      input.click();
+
+    }
     useEffect(() => {
         if (!window.identity) {
             handleRefresh();
@@ -87,15 +151,18 @@ export default function Dashboard() {
             <PageHeader>
                 <PageHeaderHeading>Dashboard</PageHeaderHeading>
             </PageHeader>
-            <Card>
+            <Card className="mb-2">
                 <CardHeader>
                     <CardTitle>Test Internet Identity</CardTitle>
-                    <CardDescription>
+                </CardHeader>
+                <CardContent>
             {
               isAuthenticated ? (
                 <>
                   Principal Id: {principal.toText()}<br/>
-                  Account Id: {accountId}<br/><br/><br/>
+                  Account Id: {accountId}<br/>
+                  Asset Manager Canister Id: {process.env.CANISTER_ID_JUST_TRY_FRONTEND}<br/>
+                  <br/><br/>
                   <Button onClick={handleLogout}>
                     Logout
                   </Button>
@@ -156,9 +223,31 @@ gradientUnits="userSpaceOnUse"
               )
             }                      
                         
-                    </CardDescription>
-                </CardHeader>
+                </CardContent>                
             </Card>
+
+            {
+              isAuthenticated ? (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Test Image Upload</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Button onClick={handleUploadPhotos}>
+                        📂 Upload photo
+                      </Button>
+                      <br/>
+                      <br/>
+
+                      {progress !== null && <div className={'App-progress'}>{Math.round(progress * 100)}%</div>}
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <></>
+              )
+            }
         </>
     )
 }
