@@ -81,9 +81,9 @@ export default function Dashboard() {
       console.log(`[Dashboard][handleLogin] Perform login...`);
       let lAuthClient = await login();
       await handleSaveData(lAuthClient);
-
+      const lAssetManager = setupAssetManager(lagent);
             // Load uploaded files
-            await assetManager.list()
+            await lAssetManager.list()
             .then(assets => assets
                 .filter(asset => asset.key.startsWith('/uploads/'))
                 .sort((a, b) => Number(b.encodings[0].modified - a.encodings[0].modified))
@@ -146,12 +146,24 @@ export default function Dashboard() {
               const batch = assetManager.batch();
               const items = await Promise.all(Array.from(input.files).map(async (file) => {
                   const {fileName, width, height} = await detailsFromFile(file);
+                  console.log(`[Dashbord][handleUploadPhotos] Batch upload file:`, fileName);
+
                   const key = await batch.store(file, {path: '/uploads', fileName});
+                  console.log(`[Dashboard][handleUploadPhotos] Batch Key:`, key);
+
                   return {key, fileName, width, height};
               }));
-              await batch.commit({onProgress: ({current, total}) => setProgress(current / total)});
+              console.log(`[Dashboard][handleUploadPhotos] items:`, items);
+
+              await batch.commit({onProgress: ({current, total}) => {
+                console.log(`[Dashboard][handlePhotoUploads] Upload Progress: ${current} / ${total}`)
+                return setProgress(current / total)
+              }});
+
               setUploads(prevState => [...items, ...prevState])
           } catch (e) {
+              console.log(`[Dashboard][handleUploadPhotos] Error:`, e);
+
               if (e.message.includes('Caller is not authorized')) {
                   alert("Caller is not authorized, follow Authorization instructions in README");
               } else {
@@ -262,7 +274,16 @@ gradientUnits="userSpaceOnUse"
                       </Button>
                       <br/>
                       <br/>
-
+                      <div className={'App-wrapper'}>
+                        <Masonry breakpointCols={{default: 4, 600: 2, 800: 3}} className={'App-masonry'} columnClassName="App-masonry-column">
+                          
+                          {uploads.map(upload => (
+                            <div key={upload.key} className={'App-image'} style={{aspectRatio: upload.width / upload.height}}>
+                              <img src={ "http://" + process.env.CANISTER_ID_JUST_TRY_FRONTEND + ".localhost:" + process.env.REPLICA_PORT + upload.key} alt={upload.fileName} loading={'lazy'}/>
+                            </div>))}
+                        </Masonry>
+            
+                      </div>
                       {progress !== null && <div className={'App-progress'}>{Math.round(progress * 100)}%</div>}
                     </CardContent>
                   </Card>
