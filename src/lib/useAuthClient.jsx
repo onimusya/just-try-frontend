@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { AccountIdentifier } from "@dfinity/ledger-icp";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { AssetManager } from '@dfinity/assets';
+import { createActor } from "@/declarations/just-try-backend";
 
 const AuthContext = createContext();
 
@@ -39,6 +40,7 @@ export const useAuthClient = (options = defaultOptions) => {
   const [accountId, setAccountId] = useState(null);
   const [agent, setAgent] = useState(null);
   const [assetManager, setAssetManager] = useState(null);
+  const [justTryBackend, setJustTryBackend] = useState(null);
 
   const isLocal = !window.location.host.endsWith('ic0.app');
 
@@ -89,6 +91,8 @@ export const useAuthClient = (options = defaultOptions) => {
   }
 
   const updateClient = async (client) => {
+
+    console.log(`[useAuthClient][updateClient] ...`);
     const isAuthenticated = await client.isAuthenticated();
     setIsAuthenticated(isAuthenticated);
 
@@ -104,6 +108,35 @@ export const useAuthClient = (options = defaultOptions) => {
     setAuthClient(client);
 
     let accountIdString = toHexString(accountId.bytes);
+
+    const host = process.env.DFX_NETWORK !== 'ic' ? 'http://127.0.0.1:4943' : 'https://ic0.app';
+
+    console.log(`[useAuthClient][updateClient] host:`, host);
+
+    const lagent = new HttpAgent({
+      host, identity,
+    });
+
+    // Fetch root key for certificate validation during development
+    if (process.env.DFX_NETWORK !== "ic") {
+      // Will throw error when
+      console.log(`[useAuthClient][updateClient] Running in local, fetch root key`);
+      await lagent.fetchRootKey().catch((err) => {
+        console.log(`[useAuthClient][updateClient] Error (fetchRootKey): `, err);
+      });
+    }
+
+    const jtBackend = createActor(
+      process.env.CANISTER_ID_JUST_TRY_BACKEND,
+      {
+        agent: lagent,
+      }
+    );    
+
+    setJustTryBackend(jtBackend);
+
+    const lid = (await jtBackend.id()).toText();
+    console.log(`[useAuthClient][updateClient] Backend Id:`, lid);
 
   }
 

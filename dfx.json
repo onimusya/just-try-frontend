@@ -12,11 +12,18 @@
       "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
     },
     "just-try-frontend": {
+      "dependencies": [
+        "just-try-backend"
+      ],      
       "source": [
         "./dist"
       ],
       "type": "assets"
-    }
+    },
+    "just-try-backend": {
+      "main": "just-try-backend/src/Main.mo",
+      "type": "motoko"
+    }    
   },
   "defaults": {
     "build": {

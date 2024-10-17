@@ -29,31 +29,26 @@ dfx canister --help
 
 If you want to test your project locally, you can use the following commands:
 
+### Step 1: Build and deploy the frontend canister
 ```bash
 # Starts the replica, running in the background
 dfx start --background
 
-# Deploys your canisters to the replica and generates your candid interface
-dfx deploy
+# Deploys your canisters to the replica and generates your candid interface for FRONTEND
+dfx deploy just-try-frontend
 ```
 
 Once the job completes, your application will be available at `http://localhost:4943?canisterId={asset_canister_id}`.
 
-If you have made changes to your backend canister, you can generate a new candid interface with
+
+### Step 2: Build and deploy the backend canister:
 
 ```bash
-npm run generate
+dfx canister create just-try-backend
+dfx build just-try-backend
+dfx canister install just-try-backend --argument='(principal "2mxjj-pyyts-rk2hl-2xyka-avylz-dfama-pqui5-pwrhx-wtq2x-xl5lj-qqe")'
+dfx deploy just-try-backend
 ```
-
-at any time. This is recommended before starting the frontend development server, and will be run automatically any time you run `dfx deploy`.
-
-If you are making frontend changes, you can start a development server with
-
-```bash
-npm start
-```
-
-Which will start a server at `http://localhost:8080`, proxying API requests to the replica at port 4943.
 
 
 ## Authorization

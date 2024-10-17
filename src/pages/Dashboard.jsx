@@ -72,8 +72,9 @@ export default function Dashboard() {
         let accountId = AccountIdentifier.fromPrincipal({ principal });
         let accountIdString = toHexString(accountId.bytes);
         console.log(`[Dashboard][handleSaveData] AccountId String:`, accountIdString);        
-        updateClient(authClient);
+        await updateClient(authClient);
 
+        
     }
 
     const handleLogin = async () => {
