@@ -52,7 +52,11 @@ export default function Dashboard() {
   const [uploads, setUploads] = useState([]);
   const [progress, setProgress] = useState(null);
 
-  const { login, logout, isAuthenticated, principal, accountId, updateClient, agent, setupAgent, assetManager, setupAssetManager } = useAuth();
+  const [backendInstaller, setBackendInstaller] = useState(null);
+  const [backendWhoAmI, setBackendWhoAmI] = useState(null);
+  const [backendId, setBackendId] = useState(null);
+
+  const { login, logout, isAuthenticated, principal, accountId, updateClient, agent, setupAgent, assetManager, setupAssetManager, justTryBackend } = useAuth();
 
     function toHexString(byteArray) {
         return Array.from(byteArray, function (byte) {
@@ -82,6 +86,8 @@ export default function Dashboard() {
       console.log(`[Dashboard][handleLogin] Perform login...`);
       let lAuthClient = await login();
       await handleSaveData(lAuthClient);
+
+      const lagent = await setupAgent(lAuthClient);
       const lAssetManager = setupAssetManager(lagent);
             // Load uploaded files
             await lAssetManager.list()
@@ -176,6 +182,23 @@ export default function Dashboard() {
       input.click();
 
     }
+
+    const handleRetrieve = async () => {
+
+      const lid = (await justTryBackend.id()).toText();
+      console.log(`[Dashboard][handleRetrieve] Backend Id:`, lid);
+      setBackendId(lid);
+
+      const linstaller = (await justTryBackend.installer()).toText();
+      console.log(`[Dashboard][handleRetrieve] Backend Installer:`, linstaller);
+      setBackendInstaller(linstaller);
+
+      const lwhoami = (await justTryBackend.whoami()).toText();
+      console.log(`[Dashboard][handleRetrieve] Backend Who Am I:`, lwhoami);
+      setBackendWhoAmI(lwhoami);
+      
+    }
+
     useEffect(() => {
         if (!window.identity) {
             handleRefresh();
@@ -265,7 +288,7 @@ gradientUnits="userSpaceOnUse"
             {
               isAuthenticated ? (
                 <>
-                  <Card>
+                  <Card className="mb-2">
                     <CardHeader>
                       <CardTitle>Test Image Upload</CardTitle>
                     </CardHeader>
@@ -286,6 +309,23 @@ gradientUnits="userSpaceOnUse"
             
                       </div>
                       {progress !== null && <div className={'App-progress'}>{Math.round(progress * 100)}%</div>}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="mb-2">
+                    <CardHeader>
+                      <CardTitle>Get Backend Canister Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Button onClick={handleRetrieve}>
+                        Retrieve
+                      </Button>
+                      <br/>
+                      <br/>
+                      Backend Canister Id: {backendId} <br/>
+                      Backend Installer: {backendInstaller} <br/>
+                      Backend Function Caller: {backendWhoAmI} <br/>
+
                     </CardContent>
                   </Card>
                 </>

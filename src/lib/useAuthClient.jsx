@@ -135,9 +135,6 @@ export const useAuthClient = (options = defaultOptions) => {
 
     setJustTryBackend(jtBackend);
 
-    const lid = (await jtBackend.id()).toText();
-    console.log(`[useAuthClient][updateClient] Backend Id:`, lid);
-
   }
 
   const logout = async () => {
@@ -187,7 +184,8 @@ export const useAuthClient = (options = defaultOptions) => {
     agent,
     setupAgent,
     assetManager,
-    setupAssetManager
+    setupAssetManager,
+    justTryBackend
   }
 }
 
